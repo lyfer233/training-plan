@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <vector>
+#include <iostream>
 #include "util/random.h"
 
 namespace skiplist {
@@ -38,7 +39,7 @@ class SkipList {
     // Returns true iff the iterator is positioned at a valid node.
     // valid indicates the iterator is not nullptr
     bool Valid() const {
-      return node_ != nullptr;
+      return node_ != nullptr && node_->Next(1) != nullptr;
     }
 
     // Returns the key at the current position.
@@ -78,9 +79,9 @@ class SkipList {
     // Position at the last entry in list.
     // Final state of iterator is Valid() iff list is not empty.
     void SeekToLast() {
-      while (node_->Next(1) != nullptr) {
-        prevNode_ = node_;
-        node_ = node_->Next(1);
+      node_ = list_->head_;
+      while (Valid()) {
+        Next();
       }
     }
 
@@ -98,6 +99,11 @@ class SkipList {
   Node* NewNode(const Key& key, int height) { return new Node(key, height); }
   int RandomHeight();
   bool Equal(const Key& a, const Key& b) const { return (compare_(a, b) == 0); }
+
+  // Return true iff no one element at the list.
+  bool empty() const {
+    return head_ == nullptr || head_->Next(1) == nullptr;
+  }
 
   // Return true if key is greater than the data stored in "n"
   bool KeyIsAfterNode(const Key& key, Node* n) const;
@@ -134,8 +140,8 @@ template <typename Key, class Comparator>
 struct SkipList<Key, Comparator>::Node {
   Node(const Key& k, int height) : key(k) {
     // resize the next_ array of size height
-    for (int i = 0; i < height; i++) {
-      next_[i] = nullptr;
+    for (int i = 0; i <= height; i++) {
+      next_.push_back(nullptr);
     }
   }
 
@@ -172,6 +178,9 @@ int SkipList<Key, Comparator>::RandomHeight() {
 
 template <typename Key, class Comparator>
 void SkipList<Key, Comparator>::Insert(const Key& key) {
+  if (empty()) {
+    return;
+  }
   // Will insert previous Node
   Node* preNode[kMaxHeight];
   // The start node
@@ -184,7 +193,7 @@ void SkipList<Key, Comparator>::Insert(const Key& key) {
     }
     preNode[height] = start;
   }
-  start = start->Next(0);
+  start = start->Next(1);
 
   // If key has exist, then doing.
   if (start != nullptr && start->key == key) {
@@ -212,6 +221,9 @@ void SkipList<Key, Comparator>::Insert(const Key& key) {
 
 template <typename Key, class Comparator>
 bool SkipList<Key, Comparator>::Remove(const Key& key) {
+  if (empty()) {
+    return false;
+  }
   // Will insert previous Node
   Node* preNode[kMaxHeight];
   // The start node
@@ -224,7 +236,7 @@ bool SkipList<Key, Comparator>::Remove(const Key& key) {
     }
     preNode[height] = start;
   }
-  start = start->Next(0);
+  start = start->Next(1);
 
   // If key has exist, then doing.
   if (start != nullptr && start->key == key) {
@@ -237,6 +249,10 @@ bool SkipList<Key, Comparator>::Remove(const Key& key) {
 
 template <typename Key, class Comparator>
 bool SkipList<Key, Comparator>::Contains(const Key& key) const {
+  // if skiplist not already initizlized, then return false.
+  if (empty()) {
+    return false;
+  }
   // The start node
   Node* start = head_;
   // Iterate from high to low.
@@ -246,7 +262,7 @@ bool SkipList<Key, Comparator>::Contains(const Key& key) const {
       start = start->Next(height);
     }
   }
-  start = start->Next(0);
+  start = start->Next(1);
 
   return start != nullptr and start->key == key;
 }
